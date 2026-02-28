@@ -1,4 +1,5 @@
 from sqlalchemy import Column, Integer, String, Enum, DateTime
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database.connection import Base
 import enum
@@ -18,6 +19,8 @@ class User(Base):
     senha_hash = Column(String(255), nullable=False)
     role = Column(Enum(RoleEnum), default=RoleEnum.aluno, nullable=False)
     criado_em = Column(DateTime(timezone=True), server_default=func.now())
+
+    disciplinas = relationship("Disciplina", back_populates="usuario", cascade="all, delete-orphan")
 
 
 class BlacklistedToken(Base):

@@ -73,6 +73,15 @@ def get_current_user(
     return usuario
 
 
+def require_aluno(usuario: User = Depends(get_current_user)) -> User:
+    if usuario.role != RoleEnum.aluno:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Apenas alunos podem realizar esta ação",
+        )
+    return usuario
+
+
 def cadastrar_usuario(db: Session, dados: UserCreate) -> User:
     usuario = User(
         nome=dados.nome,
