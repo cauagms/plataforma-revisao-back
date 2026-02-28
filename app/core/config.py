@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int
 
+    CORS_ORIGINS: str = "http://localhost:4200"
+
     class Config:
         env_file = Path(__file__).resolve().parent.parent.parent / ".env"
 
