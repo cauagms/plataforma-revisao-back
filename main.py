@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from slowapi import _rate_limit_exceeded_handler
+from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
 from app.routers import auth, disciplinas, topicos
@@ -14,7 +14,14 @@ Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Plataforma de Revisão Inteligente")
 
 app.state.limiter = auth.limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request, exc):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "Muitas requisições. Tente novamente em breve."},
+    )
 
 app.add_middleware(
     CORSMiddleware,
