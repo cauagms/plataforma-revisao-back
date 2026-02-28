@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy.orm import Session
@@ -13,10 +13,10 @@ from app.services.auth import (
     email_ja_cadastrado,
     get_current_user,
     invalidar_token,
+    security,
 )
 
 router = APIRouter(prefix="/auth", tags=["Autenticação"])
-security = HTTPBearer()
 limiter = Limiter(key_func=get_remote_address)
 
 
@@ -41,6 +41,7 @@ def login(request: Request, dados: UserLogin, db: Session = Depends(get_db)):
 @router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(
     credentials: HTTPAuthorizationCredentials = Depends(security),
+    usuario: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     invalidar_token(db, credentials.credentials)
