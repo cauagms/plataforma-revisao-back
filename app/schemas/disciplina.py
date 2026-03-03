@@ -5,6 +5,7 @@ from pydantic import BaseModel, field_validator
 class DisciplinaCreate(BaseModel):
     nome: str
     descricao: str | None = None
+    cor: str | None = None
 
     @field_validator("nome")
     @classmethod
@@ -18,6 +19,7 @@ class DisciplinaCreate(BaseModel):
 class DisciplinaUpdate(BaseModel):
     nome: str | None = None
     descricao: str | None = None
+    cor: str | None = None
 
     @field_validator("nome")
     @classmethod
@@ -33,6 +35,7 @@ class DisciplinaResponse(BaseModel):
     id: int
     nome: str
     descricao: str | None
+    cor: str | None
     user_id: int
     criado_em: datetime
     atualizado_em: datetime

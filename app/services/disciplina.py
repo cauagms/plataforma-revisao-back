@@ -32,6 +32,7 @@ def criar_disciplina(db: Session, dados: DisciplinaCreate, usuario: User) -> Dis
     disciplina = Disciplina(
         nome=dados.nome,
         descricao=dados.descricao,
+        cor=dados.cor,
         user_id=usuario.id,
     )
     db.add(disciplina)
@@ -52,6 +53,8 @@ def atualizar_disciplina(
         disciplina.nome = dados.nome
     if dados.descricao is not None:
         disciplina.descricao = dados.descricao
+    if dados.cor is not None:
+        disciplina.cor = dados.cor
 
     db.commit()
     db.refresh(disciplina)
