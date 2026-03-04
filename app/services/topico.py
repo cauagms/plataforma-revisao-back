@@ -1,7 +1,9 @@
 from fastapi import HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func as sql_func
 from app.models.disciplina import Disciplina
 from app.models.topico import Topico
+from app.models.revisao import Revisao
 from app.models.user import User, RoleEnum
 from app.schemas.topico import TopicoCreate, TopicoUpdate
 
@@ -18,20 +20,44 @@ def _obter_disciplina_autorizada(db: Session, disciplina_id: int, usuario: User)
     return disciplina
 
 
-def listar_topicos(db: Session, disciplina_id: int, usuario: User) -> list[Topico]:
-    _obter_disciplina_autorizada(db, disciplina_id, usuario)
-    return db.query(Topico).filter(Topico.disciplina_id == disciplina_id).all()
+def _enriquecer_topico(topico: Topico) -> dict:
+    total = len(topico.revisoes)
+    ultima = max((r.criado_em for r in topico.revisoes), default=None) if total > 0 else None
+    return {
+        "id": topico.id,
+        "titulo": topico.titulo,
+        "conteudo": topico.conteudo,
+        "disciplina_id": topico.disciplina_id,
+        "criado_em": topico.criado_em,
+        "atualizado_em": topico.atualizado_em,
+        "status": "Revisado" if total > 0 else "Pendente",
+        "ultima_revisao_em": ultima,
+        "total_revisoes": total,
+    }
 
 
-def obter_topico(db: Session, disciplina_id: int, topico_id: int, usuario: User) -> Topico:
+def listar_topicos(db: Session, disciplina_id: int, usuario: User) -> list[dict]:
     _obter_disciplina_autorizada(db, disciplina_id, usuario)
-    topico = db.query(Topico).filter(
-        Topico.id == topico_id,
-        Topico.disciplina_id == disciplina_id,
-    ).first()
+    topicos = (
+        db.query(Topico)
+        .options(joinedload(Topico.revisoes))
+        .filter(Topico.disciplina_id == disciplina_id)
+        .all()
+    )
+    return [_enriquecer_topico(t) for t in topicos]
+
+
+def obter_topico(db: Session, disciplina_id: int, topico_id: int, usuario: User) -> dict:
+    _obter_disciplina_autorizada(db, disciplina_id, usuario)
+    topico = (
+        db.query(Topico)
+        .options(joinedload(Topico.revisoes))
+        .filter(Topico.id == topico_id, Topico.disciplina_id == disciplina_id)
+        .first()
+    )
     if not topico:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tópico não encontrado")
-    return topico
+    return _enriquecer_topico(topico)
 
 
 def criar_topico(db: Session, disciplina_id: int, dados: TopicoCreate, usuario: User) -> Topico:

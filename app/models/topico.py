@@ -15,3 +15,4 @@ class Topico(Base):
     atualizado_em = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     disciplina = relationship("Disciplina", back_populates="topicos")
+    revisoes = relationship("Revisao", back_populates="topico", cascade="all, delete-orphan")

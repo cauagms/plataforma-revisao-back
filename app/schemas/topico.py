@@ -36,6 +36,9 @@ class TopicoResponse(BaseModel):
     disciplina_id: int
     criado_em: datetime
     atualizado_em: datetime
+    status: str = "Pendente"
+    ultima_revisao_em: datetime | None = None
+    total_revisoes: int = 0
 
     class Config:
         from_attributes = True
