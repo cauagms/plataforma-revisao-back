@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 from app.core.config import settings
-from app.routers import auth, disciplinas, topicos, revisoes
+from app.routers import auth, disciplinas, topicos, revisoes, estudar_hoje
 from app.database.connection import engine, Base
 import app.models.user  # noqa: F401
 import app.models.disciplina  # noqa: F401
@@ -36,6 +36,7 @@ app.include_router(auth.router)
 app.include_router(disciplinas.router)
 app.include_router(topicos.router)
 app.include_router(revisoes.router)
+app.include_router(estudar_hoje.router)
 
 @app.get("/")
 def root():
