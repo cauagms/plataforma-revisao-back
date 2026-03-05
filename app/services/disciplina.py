@@ -1,6 +1,9 @@
 from fastapi import HTTPException, status
+from sqlalchemy import func as sql_func
 from sqlalchemy.orm import Session
 from app.models.disciplina import Disciplina
+from app.models.topico import Topico
+from app.models.revisao import Revisao
 from app.models.user import User, RoleEnum
 from app.schemas.disciplina import DisciplinaCreate, DisciplinaUpdate
 
@@ -13,10 +16,51 @@ def _verificar_proprietario(disciplina: Disciplina, usuario: User) -> None:
         )
 
 
-def listar_disciplinas(db: Session, usuario: User) -> list[Disciplina]:
-    if usuario.role == RoleEnum.professor:
-        return db.query(Disciplina).all()
-    return db.query(Disciplina).filter(Disciplina.user_id == usuario.id).all()
+def listar_disciplinas(db: Session, usuario: User) -> list[dict]:
+    total_sub = (
+        db.query(
+            Topico.disciplina_id,
+            sql_func.count(Topico.id).label("total_topicos"),
+        )
+        .group_by(Topico.disciplina_id)
+        .subquery()
+    )
+
+    revisados_sub = (
+        db.query(
+            Topico.disciplina_id,
+            sql_func.count(sql_func.distinct(Topico.id)).label("topicos_revisados"),
+        )
+        .join(Revisao, Revisao.topico_id == Topico.id)
+        .group_by(Topico.disciplina_id)
+        .subquery()
+    )
+
+    query = (
+        db.query(
+            Disciplina,
+            sql_func.coalesce(total_sub.c.total_topicos, 0).label("total_topicos"),
+            sql_func.coalesce(revisados_sub.c.topicos_revisados, 0).label("topicos_revisados"),
+        )
+        .outerjoin(total_sub, Disciplina.id == total_sub.c.disciplina_id)
+        .outerjoin(revisados_sub, Disciplina.id == revisados_sub.c.disciplina_id)
+    )
+
+    if usuario.role != RoleEnum.professor:
+        query = query.filter(Disciplina.user_id == usuario.id)
+
+    resultados = query.all()
+
+    disciplinas = []
+    for disc, total, revisados in resultados:
+        d = disc.__dict__.copy()
+        d.pop("_sa_instance_state", None)
+        d["total_topicos"] = total
+        d["topicos_revisados"] = revisados
+        d["percentual_revisados"] = round((revisados / total) * 100) if total > 0 else 0
+        disciplinas.append(d)
+
+    return disciplinas
 
 
 def obter_disciplina(db: Session, disciplina_id: int, usuario: User) -> Disciplina:

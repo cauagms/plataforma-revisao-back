@@ -39,6 +39,9 @@ class DisciplinaResponse(BaseModel):
     user_id: int
     criado_em: datetime
     atualizado_em: datetime
+    total_topicos: int = 0
+    topicos_revisados: int = 0
+    percentual_revisados: int = 0
 
     class Config:
         from_attributes = True
