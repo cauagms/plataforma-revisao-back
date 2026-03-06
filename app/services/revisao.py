@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.models.disciplina import Disciplina
@@ -31,9 +33,11 @@ def criar_revisao(
     db: Session, disciplina_id: int, topico_id: int, dados: RevisaoCreate, usuario: User
 ) -> Revisao:
     _obter_topico_autorizado(db, disciplina_id, topico_id, usuario)
+    agora_utc = datetime.now(timezone.utc)
     revisao = Revisao(
         topico_id=topico_id,
         reflexao=dados.reflexao,
+        criado_em=agora_utc,
     )
     db.add(revisao)
     db.commit()

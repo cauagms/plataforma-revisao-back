@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func as sql_func
@@ -6,6 +8,7 @@ from app.models.topico import Topico
 from app.models.revisao import Revisao
 from app.models.user import User, RoleEnum
 from app.schemas.topico import TopicoCreate, TopicoUpdate
+from app.services.estudar_hoje import classificar_status_revisao
 
 
 def _obter_disciplina_autorizada(db: Session, disciplina_id: int, usuario: User) -> Disciplina:
@@ -23,6 +26,16 @@ def _obter_disciplina_autorizada(db: Session, disciplina_id: int, usuario: User)
 def _enriquecer_topico(topico: Topico) -> dict:
     total = len(topico.revisoes)
     ultima = max((r.criado_em for r in topico.revisoes), default=None) if total > 0 else None
+    status_revisao, _ = classificar_status_revisao(total, ultima, topico.criado_em)
+    if status_revisao is not None:
+        if status_revisao.value == "atrasado":
+            status = "Atrasado"
+        elif status_revisao.value == "primeira_revisao":
+            status = "Pendente"
+        else:
+            status = "Revisar hoje"
+    else:
+        status = "Revisado" if total > 0 else "Pendente"
     return {
         "id": topico.id,
         "titulo": topico.titulo,
@@ -30,7 +43,7 @@ def _enriquecer_topico(topico: Topico) -> dict:
         "disciplina_id": topico.disciplina_id,
         "criado_em": topico.criado_em,
         "atualizado_em": topico.atualizado_em,
-        "status": "Revisado" if total > 0 else "Pendente",
+        "status": status,
         "ultima_revisao_em": ultima,
         "total_revisoes": total,
     }
@@ -62,10 +75,13 @@ def obter_topico(db: Session, disciplina_id: int, topico_id: int, usuario: User)
 
 def criar_topico(db: Session, disciplina_id: int, dados: TopicoCreate, usuario: User) -> Topico:
     disciplina = _obter_disciplina_autorizada(db, disciplina_id, usuario)
+    agora_utc = datetime.now(timezone.utc)
     topico = Topico(
         titulo=dados.titulo,
         conteudo=dados.conteudo,
         disciplina_id=disciplina.id,
+        criado_em=agora_utc,
+        atualizado_em=agora_utc,
     )
     db.add(topico)
     db.commit()
