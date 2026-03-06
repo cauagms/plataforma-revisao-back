@@ -89,6 +89,59 @@ class TestPrimeiraRevisao:
 
 
 class TestEstudarHojeManaus:
+    def test_concluidos_hoje_conta_revisoes_do_dia_no_fuso_local(self, monkeypatch):
+        class FixedDateTime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                fixo = datetime(2026, 3, 6, 12, 0, 0, tzinfo=estudar_hoje_service.MANAUS_TZ)
+                if tz is None:
+                    return fixo.replace(tzinfo=None)
+                return fixo.astimezone(tz)
+
+        class FakeQuery:
+            def __init__(self, topicos):
+                self._topicos = topicos
+
+            def join(self, *_args, **_kwargs):
+                return self
+
+            def options(self, *_args, **_kwargs):
+                return self
+
+            def filter(self, *_args, **_kwargs):
+                return self
+
+            def all(self):
+                return self._topicos
+
+        class FakeDB:
+            def __init__(self, topicos):
+                self._topicos = topicos
+
+            def query(self, *_args, **_kwargs):
+                return FakeQuery(self._topicos)
+
+        monkeypatch.setattr(estudar_hoje_service, "datetime", FixedDateTime)
+
+        disciplina = SimpleNamespace(id=10, nome="Matematica", cor="#112233")
+        topico = SimpleNamespace(
+            id=20,
+            titulo="Metodologia Agil",
+            disciplina_id=disciplina.id,
+            disciplina=disciplina,
+            criado_em=datetime(2026, 3, 1, 5, 0, 0),
+            revisoes=[
+                SimpleNamespace(id=1, criado_em=datetime(2026, 3, 5, 3, 30, 0)),
+                SimpleNamespace(id=2, criado_em=datetime(2026, 3, 6, 5, 41, 52)),
+                SimpleNamespace(id=3, criado_em=datetime(2026, 3, 6, 5, 50, 58)),
+            ],
+        )
+        usuario = SimpleNamespace(id=1, role=RoleEnum.professor)
+
+        resultado = estudar_hoje_service.obter_estudar_hoje(FakeDB([topico]), usuario)
+
+        assert resultado["resumo"]["concluidos_hoje"] == 2
+
     def test_topico_novo_entra_imediatamente_como_primeira_revisao(self, monkeypatch):
         class FixedDateTime(datetime):
             @classmethod
@@ -137,7 +190,9 @@ class TestEstudarHojeManaus:
         resultado = estudar_hoje_service.obter_estudar_hoje(FakeDB([topico]), usuario)
 
         assert resultado["resumo"]["topicos_para_hoje"] == 1
+        assert resultado["resumo"]["pendentes"] == 1
         assert resultado["resumo"]["atrasados"] == 0
+        assert resultado["resumo"]["revisar_hoje"] == 1
         assert resultado["topicos"][0]["status"] == estudar_hoje_service.StatusRevisao.primeira_revisao
 
     def test_topico_criado_0156_entra_no_dia_de_manaus(self, monkeypatch):
@@ -189,6 +244,9 @@ class TestEstudarHojeManaus:
         resultado = estudar_hoje_service.obter_estudar_hoje(FakeDB([topico]), usuario)
 
         assert resultado["resumo"]["topicos_para_hoje"] == 1
+        assert resultado["resumo"]["pendentes"] == 0
+        assert resultado["resumo"]["atrasados"] == 1
+        assert resultado["resumo"]["revisar_hoje"] == 0
         assert resultado["topicos"][0]["topico_id"] == topico.id
 
     def test_topico_sem_revisoes_so_fica_atrasado_apos_24h_exatas(self, monkeypatch):
@@ -239,7 +297,9 @@ class TestEstudarHojeManaus:
         resultado = estudar_hoje_service.obter_estudar_hoje(FakeDB([topico]), usuario)
 
         assert resultado["resumo"]["topicos_para_hoje"] == 1
+        assert resultado["resumo"]["pendentes"] == 0
         assert resultado["resumo"]["atrasados"] == 1
+        assert resultado["resumo"]["revisar_hoje"] == 0
         assert resultado["topicos"][0]["status"] == estudar_hoje_service.StatusRevisao.atrasado
 
 

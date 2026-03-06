@@ -109,9 +109,7 @@ def obter_estudar_hoje(db: Session, usuario: User) -> dict:
         total = len(revisoes)
         ultima = max((r.criado_em for r in revisoes), default=None) if total > 0 else None
 
-        revisado_hoje = any(_to_manaus_date(r.criado_em) == hoje for r in revisoes)
-        if revisado_hoje:
-            concluidos_hoje += 1
+        concluidos_hoje += sum(1 for r in revisoes if _to_manaus_date(r.criado_em) == hoje)
 
         status, proxima = classificar_status_revisao(total, ultima, topico.criado_em, agora)
         if status is None or proxima is None:
@@ -134,12 +132,14 @@ def obter_estudar_hoje(db: Session, usuario: User) -> dict:
     atrasados = sum(1 for t in pendentes if t["status"] == StatusRevisao.atrasado)
     revisar_hoje = sum(1 for t in pendentes if t["status"] == StatusRevisao.revisar_hoje)
     primeira_revisao = sum(1 for t in pendentes if t["status"] == StatusRevisao.primeira_revisao)
+    revisar_hoje_card = revisar_hoje + primeira_revisao
 
     return {
         "resumo": {
             "topicos_para_hoje": atrasados + revisar_hoje + primeira_revisao,
+            "pendentes": primeira_revisao,
             "atrasados": atrasados,
-            "revisar_hoje": revisar_hoje,
+            "revisar_hoje": revisar_hoje_card,
             "concluidos_hoje": concluidos_hoje,
         },
         "topicos": pendentes,
