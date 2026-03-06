@@ -49,6 +49,7 @@ htmlcov/
 # Claude (local)
 # =========================
 .claude/
+CLAUDE.md
 
 # =========================
 # OS files
