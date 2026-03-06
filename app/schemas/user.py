@@ -32,6 +32,8 @@ class UserCreate(BaseModel):
             raise ValueError("Senha deve conter pelo menos uma letra minúscula")
         if not re.search(r"\d", v):
             raise ValueError("Senha deve conter pelo menos um número")
+        if not re.search(r"[^A-Za-z0-9]", v):
+            raise ValueError("Senha deve conter pelo menos um caractere especial")
         return v
 
 
