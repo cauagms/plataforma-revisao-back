@@ -24,6 +24,14 @@ def _to_manaus_date(dt: datetime | None) -> date | None:
     return dt.astimezone(MANAUS_TZ).date()
 
 
+def _to_manaus_datetime(dt: datetime | None) -> datetime | None:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC_TZ)
+    return dt.astimezone(MANAUS_TZ)
+
+
 def calcular_proxima_revisao(
     total_revisoes: int,
     ultima_revisao: datetime | None,
@@ -41,8 +49,43 @@ def calcular_proxima_revisao(
     return base + timedelta(days=INTERVALOS_REVISAO[idx])
 
 
+def calcular_primeira_revisao_em(criado_em: datetime | None) -> datetime | None:
+    criado = _to_manaus_datetime(criado_em)
+    if criado is None:
+        return None
+    return criado + timedelta(days=INTERVALOS_REVISAO[0])
+
+
+def classificar_status_revisao(
+    total_revisoes: int,
+    ultima_revisao: datetime | None,
+    criado_em: datetime | None,
+    agora: datetime | None = None,
+) -> tuple[StatusRevisao | None, date | None]:
+    agora_manaus = agora.astimezone(MANAUS_TZ) if agora is not None else datetime.now(MANAUS_TZ)
+    hoje = agora_manaus.date()
+
+    if total_revisoes == 0:
+        primeira_revisao_em = calcular_primeira_revisao_em(criado_em)
+        if primeira_revisao_em is None:
+            return None, None
+        if agora_manaus >= primeira_revisao_em:
+            return StatusRevisao.atrasado, primeira_revisao_em.date()
+        return StatusRevisao.primeira_revisao, primeira_revisao_em.date()
+
+    proxima = calcular_proxima_revisao(total_revisoes, ultima_revisao, criado_em)
+    if proxima is None:
+        return None, None
+    if proxima < hoje:
+        return StatusRevisao.atrasado, proxima
+    if proxima == hoje:
+        return StatusRevisao.revisar_hoje, proxima
+    return None, proxima
+
+
 def obter_estudar_hoje(db: Session, usuario: User) -> dict:
-    hoje = datetime.now(MANAUS_TZ).date()
+    agora = datetime.now(MANAUS_TZ)
+    hoje = agora.date()
 
     query = (
         db.query(Topico)
@@ -70,20 +113,8 @@ def obter_estudar_hoje(db: Session, usuario: User) -> dict:
         if revisado_hoje:
             concluidos_hoje += 1
 
-        proxima = calcular_proxima_revisao(total, ultima, topico.criado_em)
-
-        if proxima is None:
-            continue
-
-        if total == 0:
-            if proxima > hoje:
-                continue
-            status = StatusRevisao.primeira_revisao
-        elif proxima == hoje:
-            status = StatusRevisao.revisar_hoje
-        elif proxima < hoje:
-            status = StatusRevisao.atrasado
-        else:
+        status, proxima = classificar_status_revisao(total, ultima, topico.criado_em, agora)
+        if status is None or proxima is None:
             continue
 
         pendentes.append(
