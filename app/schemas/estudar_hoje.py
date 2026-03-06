@@ -12,6 +12,7 @@ class StatusRevisao(str, Enum):
 
 class ResumoResponse(BaseModel):
     topicos_para_hoje: int
+    pendentes: int
     atrasados: int
     revisar_hoje: int
     concluidos_hoje: int
