@@ -52,6 +52,18 @@ class UserResponse(BaseModel):
         from_attributes = True
 
 
+class UserUpdate(BaseModel):
+    nome: str
+
+    @field_validator("nome")
+    @classmethod
+    def nome_nao_vazio(cls, v: str) -> str:
+        v = v.strip()
+        if len(v) < 2:
+            raise ValueError("Nome deve ter pelo menos 2 caracteres")
+        return v
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
